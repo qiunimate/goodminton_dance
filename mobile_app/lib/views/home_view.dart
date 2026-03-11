@@ -6,6 +6,7 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:goodminton_mobile/logic/game_engine.dart';
 import 'package:goodminton_mobile/utils/camera_utils.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 
 class HomeView extends StatefulWidget {
@@ -30,10 +31,23 @@ class _HomeViewState extends State<HomeView> {
   @override
   void initState() {
     super.initState();
+    _loadHandedness();
     _gameEngine = GameEngine();
     _initTts();
     _initPoseDetector();
     _initCamera();
+  }
+
+  Future<void> _loadHandedness() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _handedness = prefs.getString('handedness') ?? 'R';
+    });
+  }
+
+  Future<void> _saveHandedness(String handedness) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('handedness', handedness);
   }
 
   void _initTts() {
@@ -194,9 +208,11 @@ class _HomeViewState extends State<HomeView> {
               constraints: const BoxConstraints(minWidth: 60, minHeight: 40),
               isSelected: [_handedness == 'L', _handedness == 'R'],
               onPressed: (index) {
+                final newHandedness = index == 1 ? 'R' : 'L';
                 setState(() {
-                  _handedness = index == 1 ? 'R' : 'L';
+                  _handedness = newHandedness;
                 });
+                _saveHandedness(newHandedness);
               },
               children: const [
                 Column(

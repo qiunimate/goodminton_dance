@@ -1,75 +1,31 @@
 import 'dart:math';
 
 class Move {
-  static const List<String> SIDES = ["left", "right"];
-  static const List<String> ZONES = ["front", "back"];
-  static const List<String> MOVE_TYPES = ["net", "lift", "drop", "smash", "clear"];
-  static const List<String> DIRECTIONS = ["straight", "cross"];
-
-  final String side;
-  final String zone;
-  final String moveType;
-  final String direction;
+  final String instruction;
   final double waitTime;
 
   Move({
-    required this.side,
-    required this.zone,
-    required this.moveType,
-    required this.direction,
+    required this.instruction,
     required this.waitTime,
   });
 
-  static final Map<String, Map<String, double>> waitingTimes = {
-    "net": {"straight": 1.0, "cross": 1.2},
-    "lift": {"straight": 2.1, "cross": 2.3},
-    "drop": {"straight": 1.7, "cross": 1.9},
-    "smash": {"straight": 0.8, "cross": 1.0},
-    "clear": {"straight": 2.4, "cross": 2.6}
-  };
-
   static Move randomMove() {
     final random = Random();
-    final zone = ZONES[random.nextInt(ZONES.length)];
-    final side = SIDES[random.nextInt(SIDES.length)];
-    final direction = DIRECTIONS[random.nextInt(DIRECTIONS.length)];
+    // Random instruction 1, 2, 3, or 4
+    final instruction = (random.nextInt(4) + 1).toString();
+    // Random wait time between 1.0 and 2.0 seconds
+    final waitTime = 1.0 + random.nextDouble();
 
-    String moveType;
-    if (zone == "front") {
-      moveType = ["net", "lift"][random.nextInt(2)];
-    } else {
-      moveType = ["drop", "smash", "clear"][random.nextInt(3)];
-    }
-
-    final waitTime = waitingTimes[moveType]![direction]!;
-    
     return Move(
-      side: side,
-      zone: zone,
-      moveType: moveType,
-      direction: direction,
+      instruction: instruction,
       waitTime: waitTime,
     );
   }
 
   String getInstruction(String handedness) {
-    // handedness: 'R' or 'L'
-    String forehand = (handedness == "R") ? "right" : "left";
-    String backhand = (handedness == "R") ? "left" : "right";
-
-    String instruction = "$side $zone $direction $moveType";
-    
-    Map<String, String> mapping = {
-      "$forehand front": "1",
-      "$forehand back": "2",
-      "$backhand back": "3",
-      "$backhand front": "4"
-    };
-
-    mapping.forEach((key, value) {
-      instruction = instruction.replaceAll(key, value);
-    });
-
+    // Simply return the numeric instruction.
+    // Handedness is still used in UI for wrist selection,
+    // but instructions are now simplified to 1-4 directly.
     return instruction;
   }
 }
@@ -86,16 +42,16 @@ class GameEngine {
   bool handWasUp = false;
   DateTime? waitStartTime;
   DateTime? lastHitTime;
-  
+
   // Constants
-  static const double COMPENSATION_TIME = 1.2;
-  static const int MIN_HIT_INTERVAL_MS = 1000;
+  static const int MIN_HIT_INTERVAL_MS = 500; // Reduced for faster response
 
   void reset() {
     state = GameState.idle;
     currentMove = null;
     handWasUp = false;
     waitStartTime = null;
+    lastHitTime = null;
   }
 
   // Returns true if a new instruction should be spoken
@@ -112,8 +68,7 @@ class GameEngine {
 
     if (state == GameState.waitingForHit) {
       // Hit detection logic
-      // Check if we are outside the min hit interval
-      if (lastHitTime != null && 
+      if (lastHitTime != null &&
           now.difference(lastHitTime!).inMilliseconds < MIN_HIT_INTERVAL_MS) {
         return false;
       }
@@ -134,17 +89,15 @@ class GameEngine {
 
     if (state == GameState.waitingForNext) {
       if (currentMove != null && waitStartTime != null) {
-        final waitDuration = currentMove!.waitTime - COMPENSATION_TIME;
-        // Ensure waitDuration is at least a small positive value
-        final waitMillis = (max(0.0, waitDuration) * 1000).toInt();
-        
+        // Wait for the random 1-2s delay
+        final waitMillis = (currentMove!.waitTime * 1000).toInt();
+
         if (now.difference(waitStartTime!).inMilliseconds >= waitMillis) {
           state = GameState.idle;
           currentMove = null;
           waitStartTime = null;
         }
       } else {
-        // Fallback if something is null
         state = GameState.idle;
       }
     }

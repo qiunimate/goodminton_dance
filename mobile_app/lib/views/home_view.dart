@@ -1,11 +1,9 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:goodminton_mobile/logic/game_engine.dart';
 import 'package:goodminton_mobile/utils/camera_utils.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 
@@ -26,6 +24,7 @@ class _HomeViewState extends State<HomeView> {
   late FlutterTts _flutterTts;
   String _handedness = 'R'; // Default Right
   String _currentInstruction = "Ready";
+  int _instructionCounter = 0; // To force animation even for same text
   String _statusMessage = "";
 
   @override
@@ -172,6 +171,7 @@ class _HomeViewState extends State<HomeView> {
     if (mounted) {
       setState(() {
         _currentInstruction = instruction;
+        _instructionCounter++;
       });
     }
   }
@@ -301,14 +301,22 @@ class _HomeViewState extends State<HomeView> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  _currentInstruction,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  transitionBuilder:
+                      (Widget child, Animation<double> animation) {
+                    return ScaleTransition(scale: animation, child: child);
+                  },
+                  child: Text(
+                    _currentInstruction,
+                    key: ValueKey<int>(_instructionCounter),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 48, // Increased size for better visibility
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
               ],

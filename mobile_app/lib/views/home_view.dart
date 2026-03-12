@@ -23,8 +23,10 @@ class _HomeViewState extends State<HomeView> {
   late GameEngine _gameEngine;
   late FlutterTts _flutterTts;
   String _handedness = 'R'; // Default Right
-  String _currentInstruction = "Ready";
+  String _currentInstruction =
+      "Please ensure your whole body is visible in the frame!";
   int _instructionCounter = 0; // To force animation even for same text
+  bool _isBodyVisible = false;
   String _statusMessage = "";
 
   @override
@@ -120,6 +122,16 @@ class _HomeViewState extends State<HomeView> {
       final poses = await _poseDetector.processImage(inputImage);
       if (poses.isNotEmpty) {
         _processPose(poses.first);
+      } else {
+        // No body detected
+        if (_isBodyVisible) {
+          setState(() {
+            _isBodyVisible = false;
+            _currentInstruction =
+                "Please ensure your whole body is visible in the frame!";
+            _instructionCounter++;
+          });
+        }
       }
     } catch (e) {
       print("Error processing image: $e");
@@ -152,7 +164,23 @@ class _HomeViewState extends State<HomeView> {
         shoulder.likelihood < 0.5 ||
         hip.likelihood < 0.5) {
       // Body not fully visible
+      if (_isBodyVisible) {
+        setState(() {
+          _isBodyVisible = false;
+          _currentInstruction =
+              "Please ensure your whole body is visible in the frame!";
+          _instructionCounter++;
+        });
+      }
       return;
+    }
+
+    // Person detected and joints are visible
+    if (!_isBodyVisible) {
+      setState(() {
+        _isBodyVisible = true;
+        _gameEngine.reset();
+      });
     }
 
     // Logic: wrist_y < threshold (Midpoint)
@@ -206,6 +234,15 @@ class _HomeViewState extends State<HomeView> {
         body: Center(child: CircularProgressIndicator()),
       );
     }
+
+    // Mapping of instruction to alignment on the court image
+    // 1: front right, 2: back right, 3: back left, 4: front left
+    final Map<String, Alignment> pointAlignments = {
+      "1": const Alignment(0.6, -0.6), // front right
+      "2": const Alignment(0.6, 0.6), // back right
+      "3": const Alignment(-0.6, 0.6), // back left
+      "4": const Alignment(-0.6, -0.6), // front left
+    };
 
     return Scaffold(
       appBar: AppBar(
@@ -268,44 +305,81 @@ class _HomeViewState extends State<HomeView> {
       ),
       body: Column(
         children: [
-          // Camera Preview
+          // Display Camera Preview if body is NOT visible, otherwise show Court Image
           Expanded(
             child: Center(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final screenWidth = constraints.maxWidth;
-                  final screenHeight = constraints.maxHeight;
+              child: _isBodyVisible
+                  ? Stack(
+                      children: [
+                        // Court Image
+                        Image.asset(
+                          'assets/images/half_court.png',
+                          fit: BoxFit.contain,
+                        ),
 
-                  // Calculate preview dimensions to fit within screen bounds
-                  final cameraRatio = _controller!.value.aspectRatio;
+                        // Red Point Overlay
+                        if (pointAlignments.containsKey(_currentInstruction))
+                          Positioned.fill(
+                            child: Align(
+                              alignment: pointAlignments[_currentInstruction]!,
+                              child: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 200),
+                                child: Container(
+                                  key: ValueKey<int>(_instructionCounter),
+                                  width: 40,
+                                  height: 40,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black45,
+                                        blurRadius: 10,
+                                        spreadRadius: 2,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    )
+                  : LayoutBuilder(
+                      builder: (context, constraints) {
+                        final screenWidth = constraints.maxWidth;
+                        final screenHeight = constraints.maxHeight;
 
-                  double previewWidth, previewHeight;
+                        // Calculate preview dimensions to fit within screen bounds
+                        final cameraRatio = _controller!.value.aspectRatio;
 
-                  if (screenHeight > screenWidth) {
-                    // Portrait mode
-                    previewWidth = screenWidth;
-                    previewHeight = screenWidth * cameraRatio;
-                    if (previewHeight > screenHeight) {
-                      previewHeight = screenHeight;
-                      previewWidth = screenHeight * cameraRatio;
-                    }
-                  } else {
-                    // Landscape mode
-                    previewHeight = screenHeight;
-                    previewWidth = screenHeight * cameraRatio;
-                    if (previewWidth > screenWidth) {
-                      previewWidth = screenWidth;
-                      previewHeight = screenWidth / cameraRatio;
-                    }
-                  }
+                        double previewWidth, previewHeight;
 
-                  return SizedBox(
-                    width: previewWidth,
-                    height: previewHeight,
-                    child: CameraPreview(_controller!),
-                  );
-                },
-              ),
+                        if (screenHeight > screenWidth) {
+                          // Portrait mode
+                          previewWidth = screenWidth;
+                          previewHeight = screenWidth * cameraRatio;
+                          if (previewHeight > screenHeight) {
+                            previewHeight = screenHeight;
+                            previewWidth = screenHeight * cameraRatio;
+                          }
+                        } else {
+                          // Landscape mode
+                          previewHeight = screenHeight;
+                          previewWidth = screenHeight * cameraRatio;
+                          if (previewWidth > screenWidth) {
+                            previewWidth = screenWidth;
+                            previewHeight = screenWidth / cameraRatio;
+                          }
+                        }
+
+                        return SizedBox(
+                          width: previewWidth,
+                          height: previewHeight,
+                          child: CameraPreview(_controller!),
+                        );
+                      },
+                    ),
             ),
           ),
 

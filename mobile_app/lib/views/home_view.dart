@@ -383,35 +383,36 @@ class _HomeViewState extends State<HomeView> {
             ),
           ),
 
-          // bottom info container
-          Container(
-            width: double.infinity,
-            color: Colors.black54,
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  transitionBuilder:
-                      (Widget child, Animation<double> animation) {
-                    return ScaleTransition(scale: animation, child: child);
-                  },
-                  child: Text(
-                    _currentInstruction,
-                    key: ValueKey<int>(_instructionCounter),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 48, // Increased size for better visibility
-                      fontWeight: FontWeight.bold,
+          // bottom info container (only show when body is NOT visible)
+          if (!_isBodyVisible)
+            Container(
+              width: double.infinity,
+              color: Colors.black54,
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    transitionBuilder:
+                        (Widget child, Animation<double> animation) {
+                      return ScaleTransition(scale: animation, child: child);
+                    },
+                    child: Text(
+                      _currentInstruction,
+                      key: ValueKey<int>(_instructionCounter),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
                   ),
-                ),
-                const SizedBox(height: 8),
-              ],
+                  const SizedBox(height: 8),
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );

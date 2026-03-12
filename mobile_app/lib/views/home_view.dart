@@ -53,6 +53,21 @@ class _HomeViewState extends State<HomeView> {
     _flutterTts = FlutterTts();
     _flutterTts.setLanguage("en-US");
     _flutterTts.setSpeechRate(0.5);
+    _flutterTts.setVolume(1.0);
+    _flutterTts.setPitch(1.0);
+
+    // Set error handler
+    _flutterTts.setErrorHandler((msg) {
+      print("TTS Error: $msg");
+    });
+
+    _flutterTts.setCompletionHandler(() {
+      print("TTS Completion");
+    });
+
+    _flutterTts.setStartHandler(() {
+      print("TTS Start");
+    });
   }
 
   void _initPoseDetector() {
@@ -156,6 +171,7 @@ class _HomeViewState extends State<HomeView> {
 
     if (shouldSpeak && _gameEngine.currentMove != null) {
       final instruction = _gameEngine.currentMove!.getInstruction(_handedness);
+      print("TTS Speaking: $instruction");
       _updateInstructionUI(instruction);
       _flutterTts.speak(instruction);
     }
